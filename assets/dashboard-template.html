@@ -1086,8 +1086,14 @@
         const engagementSessions = rows.reduce((sum,row) => sum + Number(row.engagementSessions || 0), 0);
         const totalEngagement = engagementSessions ? rows.reduce((sum,row) => sum + Number(row.engagementSeconds || 0), 0) / engagementSessions : null;
         const totalLabel = Number.isFinite(totalEngagement) ? duration(totalEngagement) : '\\';
+        const rawSessions = seoData.reportGa4?.sessions ?? seoData.quarterComparison?.current?.metrics?.sessions;
+        const canonicalSessions = rawSessions == null || !Number.isFinite(Number(rawSessions)) ? null : Number(rawSessions);
+        const channelNote = root.querySelector('[data-seo-panel="seo-channels"] .section-note');
+        if (channelNote) channelNote.textContent = canonicalSessions === null
+          ? '报告期渠道维度合计'
+          : `报告期渠道维度合计 · GA4 官方总会话 ${number(canonicalSessions)} 次`;
         const header = `<div class="seo-channel-head text-small"><span></span><span></span><span>GA4 会话数</span><span>平均互动时长</span><span>关键事件数</span></div>`;
-        const total = `<div class="seo-channel-row seo-channel-total"><div>总计</div><div></div><div class="num">${number(totalSessions)}</div><div class="seo-channel-meta text-small">${totalLabel}</div><div class="num">${number(totalEvents)}</div></div>`;
+        const total = `<div class="seo-channel-row seo-channel-total"><div>渠道分项合计</div><div></div><div class="num">${number(totalSessions)}</div><div class="seo-channel-meta text-small">${totalLabel}</div><div class="num">${number(totalEvents)}</div></div>`;
         el('google-seo-channels').innerHTML = header + total + rows.map(row => {
           const engagement = row.engagementSessions ? row.engagementSeconds / row.engagementSessions : null;
           const label = Number.isFinite(engagement) ? duration(engagement) : '\\';
@@ -1304,9 +1310,12 @@
 
       const trafficHost = root.querySelector('#traffic-acquisition-summary');
       if (trafficHost) {
-        const sourceNames = {'(direct)':'直接访问',google:'Google 自然搜索','facebook.com':'Facebook','techprimex.com':'techprimex.com','(not set)':'Unassigned（GA4 未识别来源）','m.facebook.com':'m.facebook.com','tfoow.com':'tfoow.com','aunro.com':'aunro.com','chatgpt.com':'chatgpt.com'};
+        const sourceNames = {'(direct)':'直接访问',google:'Google（会话来源）','facebook.com':'Facebook','techprimex.com':'techprimex.com','(not set)':'Unassigned（GA4 未识别来源）','m.facebook.com':'m.facebook.com','tfoow.com':'tfoow.com','aunro.com':'aunro.com','chatgpt.com':'chatgpt.com'};
         const sourceRows = [...sourceTotals.values()].sort((a,b) => Number(b.sessions || 0) - Number(a.sessions || 0));
         const totalSessions = sourceRows.reduce((sum,row) => sum + Number(row.sessions || 0), 0);
+        const directSessions = Number(sourceRows.find(row => row.sessionSource === '(direct)')?.sessions || 0);
+        const rawSessions = seoData.reportGa4?.sessions ?? seoData.quarterComparison?.current?.metrics?.sessions;
+        const canonicalSessions = rawSessions == null || !Number.isFinite(Number(rawSessions)) ? null : Number(rawSessions);
         const totalEvents = sourceRows.reduce((sum,row) => sum + Number(row.keyEvents || 0), 0);
         const engagementSeconds = sourceRows.reduce((sum,row) => sum + Number(row.engagementSeconds || 0), 0);
         const engagementSessions = sourceRows.reduce((sum,row) => sum + Number(row.engagementSessions || 0), 0);
@@ -1314,7 +1323,7 @@
         const duration = seconds => { const value=Math.floor(Number(seconds || 0)); return value >= 60 ? `${Math.floor(value / 60)}分${value % 60}秒` : `${value}秒`; };
         const visible = sourceRows.slice(0,5);
         const engagementLabel = engagement === null ? '\\' : duration(engagement);
-        trafficHost.innerHTML = `<div class="traffic-total text-small">报告期总计 <strong>${totalSessions}</strong> 次会话 <span>·</span> 平均互动 <strong>${engagementLabel}</strong> <span>·</span> 关键事件 <strong>${totalEvents}</strong></div><div class="traffic-head text-small"><span>会话来源</span><span>会话数</span><span>平均互动时长</span><span>关键事件</span></div>${visible.map(row => { const value = row.engagementSessions ? row.engagementSeconds / row.engagementSessions : null; return `<div class="traffic-row"><span>${sourceNames[row.sessionSource] || row.sessionSource}</span><span>${Number(row.sessions || 0)}</span><span>${value === null ? '\\' : duration(value)}</span><span>${Number(row.keyEvents || 0)}</span></div>`; }).join('')}<div class="traffic-note text-small">直接访问占 ${totalSessions ? (Number(sourceRows[0]?.sessions || 0) / totalSessions * 100).toFixed(1) : 0}%；关键事件按报告期汇总。</div>`;
+        trafficHost.innerHTML = `<div class="traffic-total text-small">GA4 官方总会话 <strong>${canonicalSessions === null ? '\\' : canonicalSessions}</strong> 次 <span>·</span> 来源分项合计 <strong>${totalSessions}</strong> 次 <span>·</span> 平均互动 <strong>${engagementLabel}</strong> <span>·</span> 关键事件 <strong>${totalEvents}</strong></div><div class="traffic-head text-small"><span>会话来源</span><span>会话数</span><span>平均互动时长</span><span>关键事件</span></div>${visible.map(row => { const value = row.engagementSessions ? row.engagementSeconds / row.engagementSessions : null; return `<div class="traffic-row"><span>${sourceNames[row.sessionSource] || row.sessionSource}</span><span>${Number(row.sessions || 0)}</span><span>${value === null ? '\\' : duration(value)}</span><span>${Number(row.keyEvents || 0)}</span></div>`; }).join('')}<div class="traffic-note text-small">直接访问占 ${totalSessions ? (directSessions / totalSessions * 100).toFixed(1) : 0}%；关键事件按来源维度汇总。</div>`;
       }
 
       const tip = root.querySelector('#seo-v2-tooltip');

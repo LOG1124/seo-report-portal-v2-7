@@ -1,18 +1,18 @@
 ---
-name: seo-report-portal-v2-6
+name: seo-report-portal-v2-7
 description: Create, review, and publish client-isolated monthly, quarterly, yearly, or custom-period SEO dashboards from GA4, GSC, approved DataForSEO keyword-market snapshots, and SEOAgent strategy archives.
 ---
 
-# SEO Report Portal v2.6
+# SEO Report Portal v2.7
 
-**Active identity: `seo-report-portal-v2-6`.** Do not use, install, package, or inspect legacy `seo-report-portal` assets except as an explicitly requested rollback reference.
+**Active identity: `seo-report-portal-v2-7`.** Do not use, install, package, or inspect legacy `seo-report-portal` assets except as an explicitly requested rollback reference.
 
 Work from a team workspace, never from this installed skill directory. Read `references/team-usage-guide.md` before first use. Read `references/third-party-data-guide.md` before any third-party collection or archive import.
 
 ## Core rules
 
 - GSC owns search performance and dashboard opportunity-keyword selection. GA4 owns traffic, engagement, and key events. Never replace either with third-party estimates.
-- 运营总结关键词第 2 条只使用 GSC 查询数据：月报取当月非品牌词；季报和年报先合并所选报告期，同一关键词按曝光加权计算平均排名，排除包含客户域名主词的品牌词，再按平均排名数值升序取前两条。GA4、DataForSEO 和 SEOAgent 不参与该排名。
+- 运营总结关键词第 2 条只使用 GSC 非品牌查询：月报取当月，其他报告先合并所选报告期，同一关键词按曝光加权计算平均排名。先选 B 端采购/制造词，其次产品词，最后普通信息词；同类优先产品相关性，再比较平均排名、展示和点击。排除 `site:` 运算符查询，问句降级。GA4、DataForSEO 和 SEOAgent 不参与该排名。
 - DataForSEO owns selected-keyword search volume, CPC, paid competition, monthly trend, and limited live SERP. Request only exact GSC-selected dashboard keywords.
 - SEOAgent owns strategy opportunities: priority optimization themes, competitor keyword directions, and external keyword discoveries. Its estimates never enter first-party KPIs or DataForSEO market columns.
 - Before any paid DataForSEO or SEOAgent request, show the customer/domain, market, language, keyword count, SERP count, maximum cost, and purpose. Wait for explicit confirmation. Never retry a paid request automatically.
@@ -58,6 +58,8 @@ python <installed-skill-dir>/scripts/validate_report_artifact.py --report-dir <o
 https://reports.jzyseo.com/reports/<client-slug>/<monthly|quarterly|yearly|period|custom>/<period>/
 ```
 
+For a new customer, register the canonical domain with `portal_slug` derived by replacing dots with hyphens (`naysonpart.com` → `naysonpart-com`), then publish with `--new-customer` and omit `--client-slug`. The publisher rejects an existing report identity or conflicting registry entry. Historical customers continue passing their existing `--client-slug`; their public paths and source archives are unchanged.
+
 11. In the final customer delivery, label the exact copied `## 运营总结` section from the reviewed `summary.md` as “文字总结”. Do not generate another prose summary, including when asked to change its wording or emphasis.
 
 The shared SMB source archive has guest read/write access and is therefore not confidential or malicious-tamper-resistant. The ready marker only prevents consumers from using incomplete or accidentally mismatched files. `GOOGLE_SOURCE_ARCHIVE_ROOT` in `oss.env` is only a documented convenience for composing the publisher command; collector and generator never read it implicitly and always require `--archive-root`.
@@ -65,10 +67,10 @@ The shared SMB source archive has guest read/write access and is therefore not c
 Read `references/team-first-run-guide.md` before a teammate's first end-to-end run. It covers Google access, required-provider approval or waiver, SMB, individual RAM credentials, ossutil, approval, and the required local-to-SMB-to-OSS order.
 On Windows, also read `references/windows-first-run.md` before configuring paths or running the publisher.
 
-Before replacing the global v2.5 installation from GitHub `main`, require a clean Git source checkout and a staged Git archive parity check for the complete v2.5 contract:
+Before replacing the global v2.7 installation from GitHub `main`, require a clean Git source checkout and a staged Git archive parity check for the complete v2.7 contract:
 
 ```text
-python <installed-skill-dir>/scripts/check_package_parity.py --source <seo-report-portal-v2-6-source> --staged-zip <candidate.zip> --installed <global-seo-report-portal-v2-6>
+python <installed-skill-dir>/scripts/check_package_parity.py --source <seo-report-portal-v2-7-source> --staged-zip <candidate.zip> --installed <global-seo-report-portal-v2-7>
 ```
 
 ## Resources

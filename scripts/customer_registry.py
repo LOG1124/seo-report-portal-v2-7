@@ -96,6 +96,11 @@ def require_active_customer(archive_root: Path, domain: str) -> CustomerRecord:
     return record
 
 
+def default_portal_slug(domain: str) -> str:
+    """Use a new customer's canonical domain as its public path identity."""
+    return _normalise_domain(domain).removeprefix("www.").replace(".", "-")
+
+
 def google_archive_path(archive_root: Path, record: CustomerRecord, month: str) -> Path:
     """Build the canonical, cross-platform source archive path for one month."""
     if not isinstance(month, str) or not MONTH_RE.fullmatch(month):

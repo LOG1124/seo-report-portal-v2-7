@@ -15,7 +15,7 @@ from unittest.mock import patch
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE / "scripts"))
 
-from customer_registry import CustomerRecord  # noqa: E402
+from customer_registry import CustomerRecord, default_portal_slug  # noqa: E402
 from publish_oss_report import main as publish_main  # noqa: E402
 from source_archive_usage import write_usage  # noqa: E402
 
@@ -57,7 +57,7 @@ class PublisherSourceGateTests(unittest.TestCase):
         (self.report_dir / "summary.md").write_text("summary", encoding="utf-8")
 
     def _write_registry(self) -> None:
-        self.source_root.mkdir()
+        self.source_root.mkdir(exist_ok=True)
         (self.source_root / "customer-registry.json").write_text(
             json.dumps({"customers": [{
                 "canonical_domain": self.record.canonical_domain,
@@ -101,6 +101,32 @@ class PublisherSourceGateTests(unittest.TestCase):
         with patch.object(sys, "argv", publish_args(self.root, "wrong-slug", dry_run=True)):
             with self.assertRaisesRegex(ValueError, "客户标识与共享映射不一致"):
                 publish_main()
+
+    def test_new_customer_uses_domain_slug_and_existing_customer_keeps_old_path(self) -> None:
+        self.assertEqual(default_portal_slug("naysonpart.com"), "naysonpart-com")
+        self.assertEqual(default_portal_slug("www.example.co.uk"), "example-co-uk")
+        self._write_usage()
+        self._write_oss_env()
+        new_args = publish_args(self.root, "example-com", dry_run=True)
+        new_args[3:5] = ["--new-customer"]
+        with patch.object(sys, "argv", new_args):
+            self.assertEqual(publish_main(), 0)
+        self.assertFalse((self.public_root / "example-com").exists())
+
+        old_dir = self.public_root / "legacy-example" / "monthly" / "2026-05"
+        old_dir.mkdir(parents=True)
+        (old_dir / "dashboard-data.json").write_text(
+            json.dumps({"report": {"domain": "example.com"}}), encoding="utf-8"
+        )
+        with patch.object(sys, "argv", new_args):
+            with self.assertRaisesRegex(ValueError, "历史客户流程"):
+                publish_main()
+
+        self.record = CustomerRecord("example.com", "legacy-example", "active")
+        self._write_registry()
+        self._write_usage()
+        with patch.object(sys, "argv", publish_args(self.root, "legacy-example", dry_run=True)):
+            self.assertEqual(publish_main(), 0)
 
     def test_dry_run_accepts_registered_legacy_public_slug(self) -> None:
         self.record = CustomerRecord("example.com", "example.com", "active")

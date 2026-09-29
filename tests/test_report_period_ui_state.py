@@ -12,6 +12,15 @@ GENERATOR = Path(__file__).resolve().parents[1] / "scripts" / "generate_dashboar
 
 
 class ReportPeriodUiStateTests(unittest.TestCase):
+    def test_channel_and_source_totals_keep_their_distinct_ga4_meanings(self) -> None:
+        html = TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("渠道分项合计", html)
+        self.assertIn("来源分项合计", html)
+        self.assertIn("GA4 官方总会话", html)
+        self.assertIn("google:'Google（会话来源）'", html)
+        self.assertIn("sourceRows.find(row => row.sessionSource === '(direct)')", html)
+        self.assertNotIn("sourceRows[0]?.sessions", html)
+
     def test_month_selection_only_calls_selected_month_renderer(self) -> None:
         """A month switch must not re-render management summary or report-period panels."""
         html = TEMPLATE.read_text(encoding="utf-8")

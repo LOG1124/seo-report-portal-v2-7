@@ -44,7 +44,10 @@ class CustomReportGenerationTests(unittest.TestCase):
                 "--domain", "example.com", "--archive-root", str(root), "--without-third-party",
                 "--output-root", str(root / "dashboards"), "--diagnostics-root", str(root / "diagnostics"),
             ]
-            with patch.object(sys, "argv", args):
+            with patch.object(sys, "argv", args), patch(
+                "generate_dashboard_report.collect_missing_custom_comparison",
+                side_effect=FileNotFoundError("offline test: previous range unavailable"),
+            ):
                 self.assertEqual(generate_report(), 0)
 
             report_dir = root / "dashboards" / "example.com" / "custom" / "2026-09-01_to_2026-09-15"

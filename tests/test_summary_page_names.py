@@ -6,10 +6,20 @@ from pathlib import Path
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE / "scripts"))
 
-from generate_dashboard_report import summary  # noqa: E402
+from generate_dashboard_report import _summary_keywords, summary  # noqa: E402
 
 
 class SummaryPageNamesTest(unittest.TestCase):
+    def test_keyword_selection_prefers_b2b_then_product_over_top_ranked_information(self) -> None:
+        months = [{"keywords": [
+            {"query": "how to install widget", "position": 1, "impressions": 500},
+            {"query": "widget parts", "position": 5, "impressions": 40},
+            {"query": "widget supplier", "position": 12, "impressions": 15},
+            {"query": '"widget factory" -site:example.com', "position": 1, "impressions": 600},
+        ]}]
+        selected = _summary_keywords(months, "example.com", "monthly")
+        self.assertEqual([row["query"] for row in selected], ["widget supplier", "widget parts"])
+
     def test_monthly_summary_uses_gsc_clicks_and_presents_root_as_homepage(self) -> None:
         """Monthly page ranking follows GSC clicks even when GA4 sessions differ."""
         payload = {

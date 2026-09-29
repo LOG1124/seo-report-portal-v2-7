@@ -16,7 +16,7 @@ import tempfile
 from typing import Dict, Iterable
 from urllib.request import urlopen
 
-from customer_registry import require_active_customer
+from customer_registry import default_portal_slug, require_active_customer
 from report_periods import REPORT_TYPES, validate_report_label
 from source_archive_usage import verify_usage
 
@@ -68,10 +68,32 @@ def ossutil_command(value: str, base: Path) -> str:
     return value
 
 
+def check_new_customer(record, source_root: Path, archive_root: Path) -> None:
+    """Stop a first publication when this customer or public path already exists."""
+    slug = default_portal_slug(record.canonical_domain)
+    if record.legacy_public_slug or record.portal_slug != slug:
+        raise ValueError(f"新客户须先登记域名生成的公开标识：{record.canonical_domain} → {slug}")
+    customers = json.loads((source_root / "customer-registry.json").read_text(encoding="utf-8"))["customers"]
+    if sum(item.get("canonical_domain", "").lower() == record.canonical_domain for item in customers) != 1:
+        raise ValueError("该域名已有历史客户记录；请按历史客户流程发布")
+    if any(item.get("portal_slug") == slug and item.get("canonical_domain", "").lower() != record.canonical_domain for item in customers):
+        raise ValueError(f"公开标识已被其他客户登记：{slug}")
+    if (archive_root / slug).exists():
+        raise ValueError(f"共享盘已有公开标识目录：{slug}；请按历史客户流程发布")
+    for data_path in archive_root.glob("*/*/*/dashboard-data.json"):
+        old_payload = json.loads(data_path.read_text(encoding="utf-8"))
+        old_domain = old_payload.get("report", {}).get("domain") if isinstance(old_payload, dict) else None
+        if not isinstance(old_domain, str):
+            raise ValueError(f"历史报告身份无法核对：{data_path}")
+        if old_domain.lower() == record.canonical_domain:
+            raise ValueError("共享盘已有该域名的报告；请按历史客户流程发布")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="审核后将 SEO 报告从 SMB 归档发布到 OSS")
     parser.add_argument("--local-report-dir", type=Path, required=True)
-    parser.add_argument("--client-slug", required=True)
+    parser.add_argument("--client-slug", help="历史客户必填原公开标识；新客户由真实域名生成")
+    parser.add_argument("--new-customer", action="store_true", help="仅首次发布新客户时使用")
     parser.add_argument("--type", choices=sorted(REPORT_TYPES), required=True)
     parser.add_argument("--period", required=True)
     parser.add_argument("--oss-env", type=Path, default=Path(os.environ.get("OSS_ENV_FILE", "private/oss.env")))
@@ -84,6 +106,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.new_customer:
+        if args.client_slug or args.replace_archive:
+            raise ValueError("新客户首次发布不能指定 --client-slug 或 --replace-archive")
+    elif not args.client_slug:
+        raise ValueError("历史客户必须传入原 --client-slug；新客户须显式传入 --new-customer")
     validate_report_label(args.type, args.period)
 
     report_dir = args.local_report_dir.resolve()
@@ -94,6 +121,8 @@ def main() -> int:
         raise ValueError("dashboard-data.json 缺少报告域名") from exc
     source_root = args.source_archive_root.resolve()
     record = require_active_customer(source_root, report_domain)
+    if args.new_customer:
+        args.client_slug = default_portal_slug(record.canonical_domain)
     if record.portal_slug != args.client_slug:
         raise ValueError("客户标识与共享映射不一致")
     verify_usage(
@@ -110,6 +139,8 @@ def main() -> int:
     archive_root = resolve_config_path(archive_value, env_file.parent)
     if not archive_root.is_dir():
         raise FileNotFoundError(f"SMB 归档根目录不存在或未连接：{archive_root}")
+    if args.new_customer:
+        check_new_customer(record, source_root, archive_root)
 
     config_value = settings.get("OSSUTIL_CONFIG_FILE", "ossutilconfig")
     ossutil_config = resolve_config_path(config_value, env_file.parent)

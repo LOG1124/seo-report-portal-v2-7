@@ -4,10 +4,10 @@
 
 ## 1. 本地工具与私密文件
 
-在 PowerShell 的客户工作区执行。`$skill` 是 Codex 已安装的现役 v2.5 Skill，不是旧版本：
+在 PowerShell 的客户工作区执行。`$skill` 是 Codex 已安装的现役 v2.7 Skill：
 
 ```powershell
-$skill = Join-Path $env:USERPROFILE '.codex\skills\seo-report-portal-v2-6'
+$skill = Join-Path $env:USERPROFILE '.codex\skills\seo-report-portal-v2-7'
 New-Item -ItemType Directory -Force private, config | Out-Null
 Copy-Item "$skill\assets\dataforseo.env.example" 'private\dataforseo.env'
 Copy-Item "$skill\assets\oss.env.example" 'private\oss.env'
@@ -58,6 +58,8 @@ py -3 "$skill\scripts\generate_dashboard_report.py" --type monthly --start-month
 py -3 "$skill\scripts\dataforseo_keyword_enrichment.py" --config .\config\dataforseo-trial.json --archive-root 'Z:\seo-report-source-archive' --credentials .\private\dataforseo.env --dry-run
 py -3 "$skill\scripts\publish_oss_report.py" --local-report-dir .\output\dashboards\example.com\monthly\2026-08 --client-slug example-com --type monthly --period 2026-08 --oss-env .\private\oss.env --source-archive-root 'Z:\seo-report-source-archive' --dry-run
 ```
+
+该发布示例用于历史客户。新客户先在共享注册表登记由真实域名生成的 slug，再把发布命令中的 `--client-slug example-com` 换成 `--new-customer`；发现已有客户报告时会停止。
 
 补回已验证的 v2.2 本机原始档案时，使用导入器而不是手工复制共享盘文件：
 

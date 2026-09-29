@@ -29,6 +29,20 @@ RUNTIME_SCRIPT_RE = re.compile(
     re.S,
 )
 
+B2B_QUERY_MARKERS = (
+    "manufacturer", "manufacturers", "supplier", "suppliers", "wholesale", "wholesaler",
+    "oem", "odm", "private label", "bulk", "distributor", "distributors", "factory",
+    "factories", "contract manufacturing", "commercial", "industrial", "procurement",
+    "sourcing", "custom manufacturing",
+)
+PRODUCT_QUERY_MARKERS = (
+    "product", "products", "part", "parts", "system", "systems", "equipment", "machine",
+    "machinery", "furniture", "cosmetic", "cosmetics", "serum", "cream", "shampoo",
+    "conditioner", "mask", "skincare", "skin care", "hair care", "hair removal", "component",
+    "components", "accessories", "solution", "solutions", "model", "models",
+    "catalog", "catalogue", "category", "categories",
+)
+
 
 def shift_month(value: str, delta: int) -> str:
     year, month = map(int, value.split("-"))
@@ -162,16 +176,49 @@ def _is_brand_query(query: Any, domain: str) -> bool:
     return bool(token and normalised_query and token in normalised_query)
 
 
+def _query_contains_marker(query: Any, marker: str) -> bool:
+    text = re.sub(r"[^a-z0-9]+", " ", str(query or "").lower()).strip()
+    return marker in text.split() or f" {marker} " in f" {text} "
+
+
+def _summary_keyword_bucket(query: Any) -> int:
+    """Prefer commercial intent, then product intent, before informational queries."""
+    if re.match(r"^(?:how|what|where|why|when|can|is|are|do|does)\b", str(query or "").strip(), re.I):
+        return 2
+    if any(_query_contains_marker(query, marker) for marker in B2B_QUERY_MARKERS):
+        return 0
+    if any(_query_contains_marker(query, marker) for marker in PRODUCT_QUERY_MARKERS):
+        return 1
+    return 2
+
+
+def _prioritise_summary_keywords(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def sort_key(row: Dict[str, Any]) -> tuple[Any, ...]:
+        position = _value(row, "position")
+        query = row.get("query")
+        return (
+            _summary_keyword_bucket(query),
+            0 if any(_query_contains_marker(query, marker) for marker in PRODUCT_QUERY_MARKERS) else 1,
+            position if position > 0 else float("inf"),
+            -_value(row, "impressions"),
+            -_value(row, "clicks"),
+            str(row.get("query", "")).lower(),
+        )
+
+    candidates = [row for row in rows if not re.search(r"(?:^|\s)-?site:", str(row.get("query", "")), re.I)]
+    return sorted(candidates, key=sort_key)[:2]
+
+
 def _summary_keywords(months: List[Dict[str, Any]], domain: str, report_type: str) -> List[Dict[str, Any]]:
     """Select the report summary keywords from GSC rows, not GA4 or third-party data."""
     if report_type == "monthly":
         rows = [row for row in months[-1].get("keywords", []) if not _is_brand_query(row.get("query"), domain)]
-        return sorted(rows, key=lambda row: _value(row, "impressions"), reverse=True)[:2]
+        return _prioritise_summary_keywords(rows)
     rows = [
         row for row in _aggregate_action_rows(months, "keywords", "query")
         if row["impressions"] > 0 and not _is_brand_query(row.get("query"), domain)
     ]
-    return sorted(rows, key=lambda row: (row["position"], -row["impressions"], str(row["query"])))[:2]
+    return _prioritise_summary_keywords(rows)
 
 
 def _aggregate_action_rows(months: List[Dict[str, Any]], key: str, name_key: str) -> List[Dict[str, Any]]:
