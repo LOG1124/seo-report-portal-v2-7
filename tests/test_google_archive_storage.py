@@ -267,8 +267,8 @@ class GoogleArchiveStorageTest(unittest.TestCase):
 class GoogleArchiveArgumentContractTest(unittest.TestCase):
     def test_archive_root_is_required_and_archive_dir_is_not_accepted(self) -> None:
         cases = (
-            ([], "the following arguments are required: --archive-root"),
-            (["--archive-root", "root", "--archive-dir", "ignored"], "unrecognized arguments: --archive-dir ignored"),
+            (["--domain", "example.com"], "the following arguments are required: --archive-root"),
+            (["--domain", "example.com", "--archive-root", "root", "--archive-dir", "ignored"], "unrecognized arguments: --archive-dir ignored"),
         )
         for args, message in cases:
             with self.subTest(args=args), patch.object(sys, "argv", ["google_api_collector.py", *args]):
@@ -282,7 +282,7 @@ class GoogleArchiveArgumentContractTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             for month in ("2026-7", "２０２６-０７", "٢٠٢٦-٠٧"):
                 with self.subTest(month=month):
-                    args = ["--archive-root", tmp, "--month", month]
+                    args = ["--domain", "example.com", "--archive-root", tmp, "--month", month, "--archive-only"]
                     with patch.object(sys, "argv", ["google_api_collector.py", *args]), patch.object(
                         google_api_collector,
                         "_load_object",
@@ -295,7 +295,7 @@ class GoogleArchiveArgumentContractTest(unittest.TestCase):
     def test_non_dry_run_single_platform_is_rejected_before_config_or_api_access(self) -> None:
         for platform in ("ga4", "gsc"):
             with self.subTest(platform=platform), patch.object(
-                sys, "argv", ["google_api_collector.py", "--archive-root", "root", "--month", "2026-07", "--platform", platform]
+                sys, "argv", ["google_api_collector.py", "--domain", "example.com", "--archive-root", "root", "--month", "2026-07", "--platform", platform, "--archive-only"]
             ), patch.object(
                 google_api_collector, "_load_object", side_effect=AssertionError("single platform must stop before config access"),
             ):
@@ -326,9 +326,9 @@ class GoogleArchiveArgumentContractTest(unittest.TestCase):
     def _run_with_mocked_collection(self, args, *, save_result) -> None:
         context = SimpleNamespace(domain="example.com", report_start="2026-07-01", report_end="2026-07-31")
         config = {"service_account_email": "service@example.com", "ga4": {"property_id": "123"}, "gsc": {"site_url": "https://example.com"}}
-        with patch.object(sys, "argv", ["google_api_collector.py", *args]), patch.object(
-            google_api_collector, "_load_object", return_value=config
-        ), patch.object(google_api_collector.ProjectContext, "from_file", return_value=context), patch.object(
+        with patch.object(sys, "argv", ["google_api_collector.py", "--domain", "example.com", *args]), patch.object(
+            google_api_collector, "load_customer_configuration", return_value=(config, context, Path("google-api.json"))
+        ), patch.object(google_api_collector, "preflight_new_archive"), patch.object(
             google_api_collector, "_credential_path", return_value=Path("credential.json")
         ), patch.object(google_api_collector, "_validate_credential_identity"), patch.object(
             google_api_collector, "build_clients", return_value=(object(), object())

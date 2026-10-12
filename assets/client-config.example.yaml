@@ -1,9 +1,10 @@
-# Copy into a private team workspace and replace every example value.
+# Historical planning example only. The collector reads private/customers/<domain>/google-api.json
+# and project-input.json; it never reads this YAML file.
 company: Example Company
 domain: example.com
 website_url: "https://example.com/"
-ga4_property_id: "123456789"
-gsc_site_url: "sc-domain:example.com"
+ga4_property_id: ""
+gsc_site_url: ""
 portal_slug: example-com
 credentials_file: private/google-service-account.json
 first_archive_month: "2026-01"

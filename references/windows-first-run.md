@@ -4,25 +4,26 @@
 
 ## 1. 本地工具与私密文件
 
-在 PowerShell 的客户工作区执行。`$skill` 是 Codex 已安装的现役 v2.7 Skill：
+在 PowerShell 的客户工作区执行。`$skill` 是 Codex 已安装的现役 v2.7 Skill。把 `$domain` 改为本次客户的已核实规范域名；安装 Skill 不会迁移旧客户配置，旧客户先按 `customer-config-migration.md` 逐个只读核对和复制：
 
 ```powershell
 $skill = Join-Path $env:USERPROFILE '.codex\skills\seo-report-portal-v2-7'
-New-Item -ItemType Directory -Force private, config | Out-Null
-Copy-Item "$skill\assets\dataforseo.env.example" 'private\dataforseo.env'
-Copy-Item "$skill\assets\oss.env.example" 'private\oss.env'
-Copy-Item "$skill\assets\ossutilconfig.example" 'private\ossutilconfig'
-Copy-Item "$skill\assets\google-api.example.json" 'private\google-api.json'
-if (-not (Test-Path 'config\dataforseo-trial.json')) {
-    Copy-Item "$skill\assets\dataforseo-trial.example.json" 'config\dataforseo-trial.json'
-}
+$domain = 'example.com'
+$customer = Join-Path 'private\customers' $domain
+New-Item -ItemType Directory -Force $customer | Out-Null
+if (-not (Test-Path 'private\dataforseo.env')) { Copy-Item "$skill\assets\dataforseo.env.example" 'private\dataforseo.env' }
+if (-not (Test-Path 'private\oss.env')) { Copy-Item "$skill\assets\oss.env.example" 'private\oss.env' }
+if (-not (Test-Path 'private\ossutilconfig')) { Copy-Item "$skill\assets\ossutilconfig.example" 'private\ossutilconfig' }
+if (-not (Test-Path (Join-Path $customer 'google-api.json'))) { Copy-Item "$skill\assets\google-api.example.json" (Join-Path $customer 'google-api.json') }
+if (-not (Test-Path (Join-Path $customer 'project-input.json'))) { Copy-Item "$skill\assets\project-input.example.json" (Join-Path $customer 'project-input.json') }
+if (-not (Test-Path (Join-Path $customer 'dataforseo-trial.json'))) { Copy-Item "$skill\assets\dataforseo-trial.example.json" (Join-Path $customer 'dataforseo-trial.json') }
 ```
 
-通过安全渠道手动放置 Google 服务账号 JSON 到 `private\google-service-account.json`。然后只在本机打开 `private\google-api.json`，将示例 `service_account_email` 替换为该本地服务账号 JSON 的 `client_email` 值，并完成凭据文件路径配置。不要把服务账号 JSON、真实账号信息或任何密钥粘贴到聊天、Skill 包或共享目录。
+通过安全渠道手动放置 Google 服务账号 JSON 到 `private\google-service-account.json`，或保留已存在的本机文件。然后只在本机填写该客户的 `private\customers\<domain>\google-api.json`：从已核实的客户资料取得 GA4 资源 ID、GSC 的准确站点资源地址，并将示例 `service_account_email` 替换为该本地服务账号 JSON 的 `client_email`。不要把服务账号 JSON、真实账号信息或任何密钥粘贴到聊天、Skill 包或共享目录。设置了 `GOOGLE_APPLICATION_CREDENTIALS` 时，它会优先于配置中的 `credentials_file`；采集前核对实际使用的服务账号。
 
-从经批准的客户配置取得或创建 `config\project-input.json`。该文件必须包含当前客户已核对的 `website_url`、`report_start`、`report_end` 和 `cooperation_level`；不要把真实客户值写入 Skill 包或示例文件。采集器、生成器和发布器始终从已安装的 `$skill\scripts\` 运行，客户工作区只保存 `private`、`config` 和 `output`。
+在该客户的 `private\customers\<domain>\project-input.json` 填写已核对的 `website_url`、`report_start`、`report_end` 和 `cooperation_level`。采集器、生成器和发布器始终从已安装的 `$skill\scripts\` 运行。新客户需先以该域名在共享注册表建立唯一 active 记录；不需要在任务文字中特地声明“新客户”。
 
-首次使用时，上面的命令会从安全示例创建本机 `config\dataforseo-trial.json`，并保留已有本机配置不被覆盖。仅在本机填写已经批准的客户、月份和选词条件；这个试水配置不包含、也不能填写任何凭据。
+上面的命令只在目标文件不存在时从空白示例创建，不覆盖已配置的同事凭据或客户文件。`dataforseo-trial.json` 也按客户放置，仅填写已批准的客户、月份和选词条件；这个试用配置不包含、也不能填写任何凭据，凭据仍在 `private\dataforseo.env`。
 
 安装 Python 后，运行时优先使用 `.venv\Scripts\python.exe`；没有虚拟环境时使用 `py -3`。不要使用 macOS 路径 `.venv/bin/python`。
 
@@ -53,13 +54,13 @@ GOOGLE_SOURCE_ARCHIVE_ROOT=Z:\seo-report-source-archive
 Windows 必须直接使用 Python 发布器 `publish_oss_report.py`；`publish_oss_report.sh` 仅适用于 macOS。使用下列完整命令采集、生成和无写入发布：
 
 ```powershell
-py -3 "$skill\scripts\google_api_collector.py" --config .\private\google-api.json --project-input .\config\project-input.json --archive-root 'Z:\seo-report-source-archive' --month 2026-08 --archive-only
+py -3 "$skill\scripts\google_api_collector.py" --domain example.com --archive-root 'Z:\seo-report-source-archive' --month 2026-08 --archive-only
 py -3 "$skill\scripts\generate_dashboard_report.py" --type monthly --start-month 2026-08 --domain example.com --archive-root 'Z:\seo-report-source-archive' --output-root .\output\dashboards --diagnostics-root .\output\report-diagnostics --without-third-party
-py -3 "$skill\scripts\dataforseo_keyword_enrichment.py" --config .\config\dataforseo-trial.json --archive-root 'Z:\seo-report-source-archive' --credentials .\private\dataforseo.env --dry-run
+py -3 "$skill\scripts\dataforseo_keyword_enrichment.py" --config .\private\customers\example.com\dataforseo-trial.json --archive-root 'Z:\seo-report-source-archive' --credentials .\private\dataforseo.env --dry-run
 py -3 "$skill\scripts\publish_oss_report.py" --local-report-dir .\output\dashboards\example.com\monthly\2026-08 --client-slug example-com --type monthly --period 2026-08 --oss-env .\private\oss.env --source-archive-root 'Z:\seo-report-source-archive' --dry-run
 ```
 
-该发布示例用于历史客户。新客户先在共享注册表登记由真实域名生成的 slug，再把发布命令中的 `--client-slug example-com` 换成 `--new-customer`；发现已有客户报告时会停止。
+该发布示例用于历史客户。新客户先在共享注册表登记由真实域名生成的 slug，再把发布命令中的 `--client-slug example-com` 换成 `--new-customer`；发现已有客户报告时会停止。这里的 `--new-customer` 只表示首次发布，不是 Google 采集或客户配置选择开关。
 
 补回已验证的 v2.2 本机原始档案时，使用导入器而不是手工复制共享盘文件：
 

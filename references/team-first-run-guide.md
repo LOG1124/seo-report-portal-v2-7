@@ -76,9 +76,17 @@ Move-Item -LiteralPath $stage -Destination $skill
 Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue
 ```
 
-替换后重启 Codex，让新 Skill 生效；不需要重建客户工作区或重新填写任何密钥。出现问题时，将新目录移走，再把对应时间戳备份目录移回 `~/.codex/skills/seo-report-portal-v2-7`（Windows 使用同样的 `Move-Item`），然后重新启动 Codex。上述命令只删除临时 Git archive；不会删除任何旧 Skill、客户工作区或私密配置。
+替换后重启 Codex，让新 Skill 生效；不需要重建共享原始档案或重新填写任何密钥。两位同事各自按 [旧客户本机配置整理](customer-config-migration.md) 只读盘点自己的工作区，再把已核实的客户文件复制到 `private/customers/<domain>/`；旧文件保留。出现问题时，将新目录移走，再把对应时间戳备份目录移回 `~/.codex/skills/seo-report-portal-v2-7`（Windows 使用同样的 `Move-Item`），然后重新启动 Codex。上述命令只删除临时 Git archive；不会删除任何旧 Skill、客户工作区或私密配置。
 
-Windows 同事如需将“更新 v2.7、验证 UNC、迁移当前工作区已有 v2.2 原始档案”交由 Codex 一次完成，可将 `references/windows-v24-repair-runbook.md` 作为任务附件交给 Codex。该运行手册不扫描整个磁盘、不自动重采集 Google 数据，也不会触碰 `private/` 或 `~/.codex/config.toml`。
+Windows 同事如需将“更新 v2.7、验证 UNC、迁移当前工作区已有 v2.2 原始档案”交由 Codex 一次完成，可将 `references/windows-v24-repair-runbook.md` 作为任务附件交给 Codex。该运行手册不整理本机多客户配置；这一步另按 `customer-config-migration.md` 执行，不扫描整个磁盘、不自动重采集 Google 数据，也不触碰服务账号或 `~/.codex/config.toml`。
+
+在每位同事的团队工作区，首次升级时只需向现有 `AGENTS.md` 追加一次路由规则（没有该文件才新建），无需每次报告重复提醒：
+
+```text
+涉及客户 SEO 报告、GA4/GSC 采集、共享原始档案或 OSS 报告发布时，先使用已安装的 $seo-report-portal-v2-7，并阅读其 SKILL.md。GA4/GSC 原始数据只按该 Skill 的 Google API 采集器或已验证共享档案获取；故障先核对本次客户、配置、共享路径及实际 API 错误，不以 SEOAgent、GSC Wizard 或 Pages/Spaces 代替。客户本机配置在 private/customers/<规范域名>/；不复用其他客户配置。
+```
+
+不要覆盖工作区已有的其他指令；此规则只规定报告任务的入口，不代表授予付费请求、客户数据改写或发布权限。
 
 ## 管理员先完成
 

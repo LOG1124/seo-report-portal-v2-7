@@ -104,6 +104,62 @@ def _validate_credential_identity(credentials_file: Path, expected_email: str) -
         raise ValueError(f"服务账号不匹配：配置为 {expected}，密钥属于 {actual_email or '未知账号'}")
 
 
+def load_customer_configuration(archive_root: Path, customer_root: Path, domain: str, *, platform: str = "all") -> tuple[Dict[str, Any], ProjectContext, Path]:
+    """Bind one local customer directory to the shared canonical identity before any API call."""
+    canonical_domain = normalized_domain(domain)
+    root = Path(archive_root)
+    try:
+        with os.scandir(root) as entries:
+            next(entries, None)
+        record = require_active_customer(root, canonical_domain)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"共享源档路径或客户注册表不存在：{root}；请核对本机挂载盘符或 UNC 路径") from exc
+    except PermissionError as exc:
+        raise PermissionError(f"共享源档拒绝访问：{root}；请在当前 Codex 环境和系统终端分别检查同一路径") from exc
+    if record.canonical_domain != canonical_domain:
+        raise ValueError(f"客户注册表域名与请求不一致：{canonical_domain}")
+
+    customer_dir = Path(customer_root) / canonical_domain
+    if customer_dir.is_symlink():
+        raise ValueError(f"客户配置目录不能是符号链接：{customer_dir}")
+    config_path = customer_dir / "google-api.json"
+    project_path = customer_dir / "project-input.json"
+    if config_path.is_symlink() or project_path.is_symlink():
+        raise ValueError(f"客户配置文件不能是符号链接：{customer_dir}")
+    config = _load_object(config_path)
+    context = ProjectContext.from_file(project_path)
+    if context.domain != canonical_domain:
+        raise ValueError(f"客户配置域名不匹配：请求 {canonical_domain}，项目配置 {context.domain}")
+    if platform in ("all", "gsc"):
+        gsc = config.get("gsc")
+        site_url = str(gsc.get("site_url", "")).strip() if isinstance(gsc, dict) else ""
+        if not site_url or normalized_domain(site_url.removeprefix("sc-domain:")) != canonical_domain:
+            raise ValueError(f"GSC 资源域名与客户不匹配：{canonical_domain}")
+    if platform in ("all", "ga4"):
+        ga4 = config.get("ga4")
+        property_id = str(ga4.get("property_id", "")).strip() if isinstance(ga4, dict) else ""
+        if not re.fullmatch(r"[0-9]+", property_id):
+            raise ValueError(f"客户 {canonical_domain} 缺少有效 GA4 资源 ID")
+    return config, context, config_path
+
+
+def preflight_new_archive(archive_root: Path, domain: str, *, month: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None) -> Path:
+    """Reject a retained, incomplete, or locked target before contacting Google."""
+    record = require_active_customer(archive_root, domain)
+    path = google_archive_path(archive_root, record, month) if month else custom_google_archive_path(archive_root, domain, start, end)
+    lock = path.with_suffix(".json.lock")
+    if lock.exists():
+        raise FileExistsError(f"归档锁已存在，需维护负责人检查：{lock}")
+    if path.exists() and ready_path(path).exists():
+        if month:
+            read_ready_complete_month_archive(archive_root, domain, month)
+        else:
+            read_ready_custom_date_archive(archive_root, domain, start, end)
+        raise FileExistsError(f"完整原始档案已存在，请直接复用：{path}")
+    _reject_existing_archive_state(path)
+    return path
+
+
 def build_clients(credentials_file: Path, *, ga4: bool, gsc: bool) -> Tuple[Any, Any]:
     """Build Google clients lazily so unit tests do not require Google SDKs."""
     try:
@@ -655,12 +711,12 @@ def save_new_custom_archive(archive_root: Path, domain: str, start: str, end: st
 
 
 def collect_custom_archive_from_project(
-    archive_root: Path, config_path: Path, project_input: Path, start: str, end: str
+    archive_root: Path, customer_root: Path, domain: str, start: str, end: str
 ) -> Path:
     """Collect one authorized exact range into its isolated archive, without local dashboard writes."""
     _custom_date_range(start, end)
-    config = _load_object(config_path)
-    context = ProjectContext.from_file(project_input)
+    config, context, config_path = load_customer_configuration(archive_root, customer_root, domain)
+    preflight_new_archive(archive_root, context.domain, start=start, end=end)
     credentials_file = _credential_path(config, config_path)
     _validate_credential_identity(credentials_file, str(config.get("service_account_email", "")))
     ga4_client, gsc_client = build_clients(credentials_file, ga4=True, gsc=True)
@@ -682,9 +738,9 @@ def collect_custom_archive_from_project(
 def main() -> int:
     parser = argparse.ArgumentParser(description="通过只读 API 采集 GA4 与 Google Search Console 数据")
     parser.add_argument("--platform", choices=("all", "ga4", "gsc"), default="all")
-    parser.add_argument("--config", default="workflows/automation/config/google_api.json")
-    parser.add_argument("--project-input", default="workflows/automation/config/project_input.json")
-    parser.add_argument("--collected-data", default="workflows/automation/input/collected_data.json")
+    parser.add_argument("--domain", required=True, help="本次客户的规范域名")
+    parser.add_argument("--customer-root", type=Path, default=Path("private/customers"), help="本机按域名隔离的客户配置根目录")
+    parser.add_argument("--collected-data", type=Path, help="如需额外写本机字段，必须显式指定当前客户的独立文件")
     parser.add_argument("--archive-root", type=Path, required=True, help="共享原始档案根目录")
     parser.add_argument("--month", help="按自然月采集并归档，格式 YYYY-MM")
     parser.add_argument("--start", help="自定义开始日期 YYYY-MM-DD")
@@ -701,6 +757,8 @@ def main() -> int:
         parser.error("非 --dry-run 模式必须提供 --month 或完整的 --start/--end 日期范围")
     if not args.dry_run and args.platform != "all":
         parser.error("共享原始档案必须同时采集 GA4 与 GSC；单平台仅可用于 --dry-run")
+    if not args.dry_run and not args.archive_only and args.collected_data is None:
+        parser.error("共享归档请使用 --archive-only；如需同时写本机字段，须显式指定 --collected-data")
     if args.month:
         try:
             month_dates(args.month)
@@ -712,16 +770,25 @@ def main() -> int:
         except ValueError as exc:
             parser.error(str(exc))
 
-    config_path = Path(args.config)
-    config = _load_object(config_path)
-    context = ProjectContext.from_file(Path(args.project_input))
+    config, context, config_path = load_customer_configuration(args.archive_root, args.customer_root, args.domain, platform=args.platform)
     period_start, period_end, archive_label = _period_from_args(context, args.month, args.start, args.end)
+    if args.collected_data is not None and not args.archive_only and not args.dry_run:
+        expected_store = Path(args.customer_root) / context.domain / "collected_data.json"
+        if args.collected_data.is_symlink() or args.collected_data.resolve() != expected_store.resolve():
+            raise ValueError(f"本机采集字段只能写入当前客户文件：{expected_store}")
+    if not args.dry_run:
+        preflight_new_archive(
+            args.archive_root, context.domain,
+            start=period_start if custom_dates else None,
+            end=period_end if custom_dates else None,
+            month=None if custom_dates else archive_label,
+        )
     use_ga4 = args.platform in ("all", "ga4")
     use_gsc = args.platform in ("all", "gsc")
     credentials_file = _credential_path(config, config_path)
     _validate_credential_identity(credentials_file, str(config.get("service_account_email", "")))
     ga4_client, gsc_client = build_clients(credentials_file, ga4=use_ga4, gsc=use_gsc)
-    store = CollectedDataStore(Path(args.collected_data))
+    store = CollectedDataStore(args.collected_data) if args.collected_data else None
     result: Dict[str, Any] = {"domain": context.domain, "period": [period_start, period_end], "recorded": []}
     archive_payload: Dict[str, Any] = {"domain": context.domain, "period": [period_start, period_end]}
 
@@ -736,7 +803,7 @@ def main() -> int:
         )
         result["ga4"] = {"sessions": ga4_fields["session_count"], "detail_fields": 6}
         archive_payload["ga4"] = {field: value for field, value in ga4_fields.items() if not field.startswith("_")}
-        if not args.dry_run and not args.archive_only:
+        if store is not None and not args.dry_run and not args.archive_only:
             result["recorded"].extend(_record_fields(store, ga4_fields, "Google Analytics Data API", GA4_SOURCE_URL))
 
     if use_gsc:
@@ -752,7 +819,7 @@ def main() -> int:
         )
         result["gsc"] = {"clicks": gsc_fields["organic_clicks"], "queries": gsc_fields["ranked_keyword_count"], "detail_fields": 5}
         archive_payload["gsc"] = gsc_fields
-        if not args.dry_run and not args.archive_only:
+        if store is not None and not args.dry_run and not args.archive_only:
             result["recorded"].extend(_record_fields(store, gsc_fields, "Google Search Console API", GSC_SOURCE_URL))
 
     if not args.dry_run:

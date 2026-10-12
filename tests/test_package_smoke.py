@@ -83,11 +83,13 @@ class PackageSmokeTests(unittest.TestCase):
             "publish_oss_report.py",
         ):
             self.assertIn(f'py -3 "$skill\\scripts\\{script}"', guide)
-        self.assertIn('Copy-Item "$skill\\assets\\google-api.example.json" \'private\\google-api.json\'', guide)
+        self.assertIn('Copy-Item "$skill\\assets\\google-api.example.json" (Join-Path $customer \'google-api.json\')', guide)
+        self.assertIn('Copy-Item "$skill\\assets\\project-input.example.json" (Join-Path $customer \'project-input.json\')', guide)
+        self.assertIn("--domain example.com --archive-root", guide)
         self.assertIn("private\\google-service-account.json", guide)
         self.assertIn("service_account_email", guide)
         self.assertIn("client_email", guide)
-        self.assertIn("config\\project-input.json", guide)
+        self.assertIn("private\\customers\\<domain>\\project-input.json", guide)
         for field in ("website_url", "report_start", "report_end", "cooperation_level"):
             self.assertIn(field, guide)
 
@@ -113,8 +115,8 @@ class PackageSmokeTests(unittest.TestCase):
     def test_windows_dataforseo_dry_run_prepares_safe_local_config_first(self) -> None:
         """The documented dry run must not reference a config the setup omitted."""
         guide = (PACKAGE / "references" / "windows-first-run.md").read_text(encoding="utf-8")
-        setup = "Copy-Item \"$skill\\assets\\dataforseo-trial.example.json\" 'config\\dataforseo-trial.json'"
-        command = 'py -3 "$skill\\scripts\\dataforseo_keyword_enrichment.py" --config .\\config\\dataforseo-trial.json'
+        setup = 'Copy-Item "$skill\\assets\\dataforseo-trial.example.json" (Join-Path $customer \'dataforseo-trial.json\')'
+        command = 'py -3 "$skill\\scripts\\dataforseo_keyword_enrichment.py" --config .\\private\\customers\\example.com\\dataforseo-trial.json'
         self.assertIn(setup, guide)
         self.assertIn(command, guide)
         self.assertLess(guide.index(setup), guide.index(command))

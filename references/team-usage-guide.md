@@ -93,6 +93,8 @@ SEOAgent 的优先优化主题、竞品关键词方向和本站外部关键词�
 
 ## 每月工作流
 
+开始前明确本次客户规范域名；按 `private/customers/<domain>/` 选取本机 Google 与项目配置。先读共享注册表和目标月份档案：完整档案直接复用；真正缺档才运行本 Skill 的 `google_api_collector.py --domain <domain> --archive-root <shared-root> --month YYYY-MM --archive-only`。不要用旧版通用配置路径、其他客户文件、SEOAgent、GSC Wizard 或 Pages/Spaces 代替 GA4/GSC 采集。共享盘拒绝访问时先在当前 Codex 环境与系统终端核对同一路径和执行身份；API 返回错误时保留 GA4/GSC 的实际错误，再给出对应建议。旧客户本机配置整理见 [迁移指南](customer-config-migration.md)。
+
 1. 先连接共享原始档案根目录（macOS 示例：`/Volumes/共享盘/seo-report-source-archive`；Windows 使用映射盘或 UNC），并从 `assets/customer-registry.example.json` 创建 `<共享根目录>/customer-registry.json`。每个客户采集前，先登记一条 active 的“真实域名 ↔ 报告 slug”记录。新客户将真实域名中的点替换为连字符作为 slug（如 `naysonpart.com` → `naysonpart-com`），首次发布传 `--new-customer`、不传 `--client-slug`；历史客户继续传原 slug。只有已存在且目录名刚好等于真实域名的旧公开路径，才可显式加 `legacy_public_slug: true` 保留，不能把该标记用于新客户。
 2. 补回 v2.2 本机旧档案时，使用 `import_google_archive.py --archive-root <共享根目录> --source-file <旧 JSON> --month YYYY-MM`；它先验证客户、自然月和非空 GA4/GSC，再按原始字节导入，绝不手工复制、移动、删除或覆盖共享盘文件。来源只能是旧版 GA4/GSC 原始 JSON，不能是 `dashboard-data.json`、`summary.md` 或 `index.html`。采集器/导入器先独占写入 `<共享根目录>/ga4-gsc/<真实域名>/YYYY-MM.json` 并完成同步，再独占写入同名非公开 `.json.ready` SHA-256 标记；只有两者存在且哈希一致才可被生成、发布或自动选词读取，任一异常都停止且绝不覆盖。非 dry-run 的共享归档必须同时采集 GA4 和 GSC；`--dry-run` 可单平台且不写本机数据或共享档案；`--archive-only` 只写共享档案，不更新本机 `collected_data.json`。
 3. 生成报告时必须指定同一个 `--archive-root`。月报、季度报告、年度报告分别只接受连续 1、3、12 个月；非标准连续跨度使用 `period`（阶段报告）。半月或任意日期跨度使用 `custom --start-date YYYY-MM-DD --end-date YYYY-MM-DD`，只读取 `custom/` 下完全匹配的档案，并自动尝试上一等长日期范围。前序范围不可用只写内部诊断和操作者结果，不写入客户文字总结；当前报告期缺数据仍停止。生成前先复用同客户、同 `reporting_period`、范围一致且已批准的两类第三方快照；自定义日期若服务不支持精确周期，必须由用户选择月度代理或 `--without-third-party`。

@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from build_google_seo_dashboard import _domain_brand_token, _normalise_strategy_opportunities, build_dashboard_data
-from collection import ProjectContext
 from customer_registry import require_active_customer
 from google_api_collector import (
     ReadyArchive, collect_custom_archive_from_project, read_ready_complete_month_archive,
@@ -74,10 +73,10 @@ def read_archives(archive_root: Path, domain: str, months: List[str], *, require
     return snapshots, missing
 
 
-def collect_missing_custom_comparison(archive_root: Path, config: Path, project_input: Path, start: str, end: str) -> ReadyArchive:
+def collect_missing_custom_comparison(archive_root: Path, customer_root: Path, domain: str, start: str, end: str) -> ReadyArchive:
     """Collect and return the exact previous range only when no retained archive exists."""
-    collect_custom_archive_from_project(archive_root, config, project_input, start, end)
-    return read_ready_custom_date_archive(archive_root, ProjectContext.from_file(project_input).domain, start, end)
+    collect_custom_archive_from_project(archive_root, customer_root, domain, start, end)
+    return read_ready_custom_date_archive(archive_root, domain, start, end)
 
 
 def third_party_status(payload: Dict[str, Any], *, waived: bool, proxy_months: List[str] | None = None) -> Dict[str, Dict[str, str]]:
@@ -540,8 +539,7 @@ def main() -> int:
     parser.add_argument("--end-date")
     parser.add_argument("--domain", required=True)
     parser.add_argument("--archive-root", type=Path, required=True)
-    parser.add_argument("--google-config", type=Path, default=Path("workflows/automation/config/google_api.json"))
-    parser.add_argument("--project-input", type=Path, default=Path("workflows/automation/config/project_input.json"))
+    parser.add_argument("--customer-root", type=Path, default=Path("private/customers"))
     parser.add_argument("--allow-current-only", action="store_true")
     parser.add_argument("--without-third-party", action="store_true")
     parser.add_argument("--dataforseo-archive-dir", type=Path)
@@ -575,7 +573,7 @@ def main() -> int:
         except FileNotFoundError:
             try:
                 previous_archives = [collect_missing_custom_comparison(
-                    archive_root, args.google_config, args.project_input, *previous_requested,
+                    archive_root, args.customer_root, domain, *previous_requested,
                 )]
             except Exception as exc:  # prior comparison is optional, current data is already verified
                 previous_problem = str(exc)
