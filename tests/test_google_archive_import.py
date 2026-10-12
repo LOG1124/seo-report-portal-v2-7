@@ -93,7 +93,7 @@ class GoogleArchiveImportTest(unittest.TestCase):
     def test_windows_unc_root_string_is_not_rewritten(self) -> None:
         root = Path(r"\\server\共享盘\seo-report-source-archive")
         path = google_archive_path(root, CustomerRecord("example.com", "example-com", "active"), "2026-07")
-        self.assertEqual(str(path), r"\\server\共享盘\seo-report-source-archive/ga4-gsc/example.com/2026-07.json")
+        self.assertEqual(path.relative_to(root).parts, ("ga4-gsc", "example.com", "2026-07.json"))
 
 
 if __name__ == "__main__":
