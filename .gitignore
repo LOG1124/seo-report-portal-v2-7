@@ -9,3 +9,7 @@ output/dashboards/
 __pycache__/
 *.py[cod]
 .DS_Store
+
+# Track only these credential-free setup templates.
+!configuration-templates/dataforseo.env
+!configuration-templates/oss.env

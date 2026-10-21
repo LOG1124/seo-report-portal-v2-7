@@ -409,7 +409,17 @@ def runtime_script() -> str:
   const compare = report.comparison || {};
   const monthOverMonth = report.type === 'monthly' && compare.available;
   const comparisonContext = monthOverMonth ? `本月与${compare.label}对比` : `${months.length} 个月度归档${compare.available ? ` · 对比${compare.label}` : ''}`;
-  text('.topbar-brand p', report.domain || '');
+  const reportTitle = `${report.domain || ''} | SEO 运营数据报告`;
+  text('.topbar-brand h1', reportTitle);
+  document.title = reportTitle;
+  const providerLogo = root.querySelector('.report-provider-logo');
+  if (providerLogo) {
+    const favicon = document.createElement('link');
+    favicon.rel = 'icon';
+    favicon.type = 'image/png';
+    favicon.href = providerLogo.src;
+    document.head.appendChild(favicon);
+  }
   text('#report-period-trends h2', `${typeLabel}趋势`);
   text('#report-period-trends .apple-section-heading p', `${range} · ${comparisonContext}`);
   if (monthOverMonth) {

@@ -15,28 +15,7 @@ sys.path.insert(0, str(PACKAGE / "scripts"))
 from check_package_parity import CANONICAL_FILES, check_package_parity  # noqa: E402
 
 
-FILES = (
-    "SKILL.md",
-    "assets/dashboard-template.html",
-    "assets/customer-registry.example.json",
-    "assets/google-api.example.json",
-    "assets/project-input.example.json",
-    "assets/dataforseo-trial.example.json",
-    "scripts/customer_registry.py",
-    "scripts/google_api_collector.py",
-    "scripts/import_google_archive.py",
-    "scripts/dataforseo_keyword_enrichment.py",
-    "scripts/generate_dashboard_report.py",
-    "scripts/publish_oss_report.py",
-    "scripts/source_archive_usage.py",
-    "references/team-first-run-guide.md",
-    "references/team-usage-guide.md",
-    "references/customer-config-migration.md",
-    "references/windows-first-run.md",
-    "references/windows-v24-repair-runbook.md",
-    "references/third-party-data-guide.md",
-    "agents/openai.yaml",
-)
+FILES = CANONICAL_FILES
 
 
 class PackageParityTests(unittest.TestCase):

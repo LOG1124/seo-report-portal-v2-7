@@ -1,0 +1,8 @@
+# 本文件只是 MCP 配置片段；保存到 private/ 后不会自动加载。
+# 在本机填写 Token，再合并到 Codex 用户配置的同名表；不要覆盖完整 config.toml。
+[mcp_servers.seoagent]
+enabled = true
+url = "https://www.seoagent.vip/mcp"
+
+[mcp_servers.seoagent.http_headers]
+Authorization = "Bearer <PERSONAL_OR_TEAM_TOKEN>"

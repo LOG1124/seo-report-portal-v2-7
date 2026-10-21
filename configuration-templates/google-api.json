@@ -1,0 +1,13 @@
+{
+  "credentials_file": "private/google-service-account.json",
+  "service_account_email": "service-account@example.invalid",
+  "ga4": {
+    "property_id": "",
+    "row_limit": 1000
+  },
+  "gsc": {
+    "site_url": "",
+    "row_limit": 25000,
+    "inspection_limit": 20
+  }
+}

@@ -1,12 +1,14 @@
 # 同事首次上手：从采集到在线报告链接
 
+当前安装流程以 [README](../README.md) 为准：网页只做 DataForSEO、SEOAgent、OSS 共用配置及可选 Google JSON 上传；以下客户 GA4/GSC 登记步骤在该客户首次报告任务时执行，不在安装阶段执行。
+
 本指南适用于 `seo-report-portal-v2-7`。每位同事都能完成**本地 → SMB → OSS**，但不得跳过数据、付费或发布批准门禁。
 
 在 Windows 首次使用前，先阅读 [Windows 配置](windows-first-run.md)；不要把 macOS 的 `/Volumes/共享盘`、`.venv/bin/python` 或 `chmod` 命令照搬到 Windows。
 
 ## 安装或升级 v2.7
 
-这次更新从 GitHub 仓库 `https://github.com/LOG1124/seo-report-portal-v2-7.git` 的 `main` 分支取得 v2.7，不再由管理员分发 ZIP。更新**不会**重新配置 Google、DataForSEO、SEOAgent、SMB 或 OSS，也不会读取、复制或改写任何密钥。
+首次安装支持 ZIP：按包内 [README](../README.md)、[安装提示词](../INSTALL_PROMPT.md) 和 [配置指南](configuration-guide.md) 操作。已有配置的同事从 GitHub `https://github.com/LOG1124/seo-report-portal-v2-7.git` 的 `main` 更新时，优先使用 [仅升级 Skill 的提示词](../UPDATE_PROMPT.md)，记录并固定提交、核对干净归档与暂存安装的一致性；不执行首次配置流程。以下 Git 命令是手动替换参考，实际 CODEX_HOME 非默认位置时须调整路径。更新**不会**重新配置 Google、DataForSEO、SEOAgent、SMB 或 OSS，也不会读取、复制或改写任何密钥。
 
 更新时必须保留以下内容不变：客户工作区的 `private/`、`workflows/automation/input/`、`output/dashboards/`、`~/.codex/config.toml` 以及已经发布的报告。GitHub 工作副本固定放在全局 Skill 目录之外；同名的旧安装目录只会移动到带时间戳的备份目录，其他旧版本保留作回退。若源副本或现有全局 Skill 内出现 `private/`，先停止并报告，不要将凭据带入新安装。
 
@@ -76,11 +78,11 @@ Move-Item -LiteralPath $stage -Destination $skill
 Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue
 ```
 
-替换后重启 Codex，让新 Skill 生效；不需要重建共享原始档案或重新填写任何密钥。两位同事各自按 [旧客户本机配置整理](customer-config-migration.md) 只读盘点自己的工作区，再把已核实的客户文件复制到 `private/customers/<domain>/`；旧文件保留。出现问题时，将新目录移走，再把对应时间戳备份目录移回 `~/.codex/skills/seo-report-portal-v2-7`（Windows 使用同样的 `Move-Item`），然后重新启动 Codex。上述命令只删除临时 Git archive；不会删除任何旧 Skill、客户工作区或私密配置。
+替换后重启 Codex，让新 Skill 生效；沿用原团队工作区和原服务配置，不需要重建共享原始档案或重新填写任何密钥。纯 Skill 升级不整理、复制或迁移客户配置；若今后用户单独要求迁移，再按 [旧客户本机配置整理](customer-config-migration.md) 处理。出现问题时，将新目录移走，再把对应时间戳备份目录移回 `~/.codex/skills/seo-report-portal-v2-7`（Windows 使用同样的 `Move-Item`），然后重新启动 Codex。上述命令只删除临时 Git archive；不会删除任何旧 Skill、客户工作区或私密配置。
 
 Windows 同事如需将“更新 v2.7、验证 UNC、迁移当前工作区已有 v2.2 原始档案”交由 Codex 一次完成，可将 `references/windows-v24-repair-runbook.md` 作为任务附件交给 Codex。该运行手册不整理本机多客户配置；这一步另按 `customer-config-migration.md` 执行，不扫描整个磁盘、不自动重采集 Google 数据，也不触碰服务账号或 `~/.codex/config.toml`。
 
-在每位同事的团队工作区，首次升级时只需向现有 `AGENTS.md` 追加一次路由规则（没有该文件才新建），无需每次报告重复提醒：
+纯 Skill 升级不修改团队工作区的 `AGENTS.md` 或其他项目文件。若用户以后单独要求设置报告路由，可追加以下规则（保留原指令）；这不是升级的前置条件：
 
 ```text
 涉及客户 SEO 报告、GA4/GSC 采集、共享原始档案或 OSS 报告发布时，先使用已安装的 $seo-report-portal-v2-7，并阅读其 SKILL.md。GA4/GSC 原始数据只按该 Skill 的 Google API 采集器或已验证共享档案获取；故障先核对本次客户、配置、共享路径及实际 API 错误，不以 SEOAgent、GSC Wizard 或 Pages/Spaces 代替。客户本机配置在 private/customers/<规范域名>/；不复用其他客户配置。

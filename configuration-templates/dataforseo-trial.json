@@ -1,0 +1,19 @@
+{
+  "domain": "example.com",
+  "month": "2026-06",
+  "reporting_period": ["2026-06"],
+  "coverage_mode": "month",
+  "location_code": 2840,
+  "language_code": "en",
+  "serp_device": "desktop",
+  "max_keywords": 5,
+  "include_terms": [
+    "example product",
+    "example manufacturer"
+  ],
+  "exclude_terms": [
+    "site:",
+    "-site:"
+  ],
+  "output_archive_dir": "workflows/automation/input/dataforseo_keyword_archive"
+}

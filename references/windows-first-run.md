@@ -1,5 +1,9 @@
 # Windows 首次配置
 
+当前安装流程以 [README](../README.md) 为准：网页只做 DataForSEO、SEOAgent、OSS 共用配置及可选 Google JSON 上传；以下客户 GA4/GSC 登记步骤在该客户首次报告任务时执行，不在安装阶段执行。
+
+ZIP 新安装优先按 [README](../README.md) 初始化空白文件，并按 [配置指南](configuration-guide.md) 逐项离线检查；已有配置保留。下面保留日常使用与手动配置步骤。
+
 本说明仅适用于 Windows 工作区。不要运行 macOS 的 `chmod`、`/Volumes/共享盘` 或 `.venv/bin/python` 命令。
 
 ## 1. 本地工具与私密文件
